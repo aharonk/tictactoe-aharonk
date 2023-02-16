@@ -1,9 +1,7 @@
 package edu.touro.cs.mcon364.model;
 
-import edu.touro.cs.mcon364.gui.TicTacToeGUI;
 import edu.touro.cs.mcon364.shared.IntPair;
 
-import javax.swing.*;
 import java.io.*;
 
 import static org.junit.jupiter.api.Assertions.*;
