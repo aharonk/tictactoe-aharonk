@@ -1,8 +1,8 @@
 package edu.touro.cs.mcon364.model;
 
 import edu.touro.cs.mcon364.model.TicTacToeModel.CellValue;
-import edu.touro.cs.mcon364.shared.IntPair;
 
+import java.awt.*;
 import java.io.*;
 
 public class HardTicTacToeAI implements TicTacToeAI, Serializable {
@@ -22,6 +22,7 @@ public class HardTicTacToeAI implements TicTacToeAI, Serializable {
         init();
     }
 
+    //setup
     private void init() {
         board = model.getBoard();
         myTeam = model.getAiTeam();
@@ -30,7 +31,6 @@ public class HardTicTacToeAI implements TicTacToeAI, Serializable {
         rowScores = new ScorePair[3];
         diagScores = new ScorePair[2];
 
-        // Deep copy
         for (int x = 0; x < 3; x++) {
             for (int y = 0; y < 3; y++) {
                 addToLineScore(colScores, x, board[x][y]);
@@ -45,9 +45,18 @@ public class HardTicTacToeAI implements TicTacToeAI, Serializable {
         }
     }
 
+    private void addToLineScore(ScorePair[] line, int index, CellValue v) {
+        if (line[index] == null) {
+            line[index] = ScorePair.empty();
+        }
+
+        line[index].increment(v);
+    }
+
+    // gameplay
     @Override
-    public void submitMoveToAI(IntPair loc) {
-        int x = loc.val1, y = loc.val2;
+    public void submitMoveToAI(Point loc) {
+        int x = loc.x, y = loc.y;
         CellValue player = model.previousPlayer().other();
         board[x][y] = player;
 
@@ -56,7 +65,7 @@ public class HardTicTacToeAI implements TicTacToeAI, Serializable {
         if (x == y) {
             diagScores[0].increment(player);
         }
-        if (x == 2-y) {
+        if (x == 2 - y) {
             diagScores[1].increment(player);
         }
     }
@@ -67,20 +76,20 @@ public class HardTicTacToeAI implements TicTacToeAI, Serializable {
      * @return the requested move location
      */
     @Override
-    public IntPair calculateMove() {
-        IntPair block = null;
+    public Point calculateMove() {
+        Point block = null; // Only need to keep track of one. If there's more than one, we've lost either way.
 
         // region 1. Win
         // columns
         LineStats colResults = calculateWinBlockAndFork(colScores);
-        IntPair winBlockStats = colResults.winBlockScores;
+        int[] winBlockStats = colResults.winBlockScores;
         for (int y = 0; y < 3; y++) {
-            if (winBlockStats.val1 != -1 && board[winBlockStats.val1][y] == CellValue.NONE) {
-                return new IntPair(winBlockStats.val1, y);
+            if (winBlockStats[0] != -1 && board[winBlockStats[0]][y] == CellValue.NONE) {
+                return new Point(winBlockStats[0], y);
             }
 
-            if (winBlockStats.val2 != -1 && board[winBlockStats.val2][y] == CellValue.NONE) {
-                block = new IntPair(winBlockStats.val2, y);
+            if (winBlockStats[1] != -1 && board[winBlockStats[1]][y] == CellValue.NONE) {
+                block = new Point(winBlockStats[1], y);
             }
         }
 
@@ -88,12 +97,12 @@ public class HardTicTacToeAI implements TicTacToeAI, Serializable {
         LineStats rowResults = calculateWinBlockAndFork(rowScores);
         winBlockStats = rowResults.winBlockScores;
         for (int x = 0; x < 3; x++) {
-            if (winBlockStats.val1 != -1 && board[x][winBlockStats.val1] == CellValue.NONE) {
-                return new IntPair(x, winBlockStats.val1);
+            if (winBlockStats[0] != -1 && board[x][winBlockStats[0]] == CellValue.NONE) {
+                return new Point(x, winBlockStats[0]);
             }
 
-            if (winBlockStats.val2 != -1 && board[x][winBlockStats.val2] == CellValue.NONE) {
-                block = new IntPair(x, winBlockStats.val2);
+            if (winBlockStats[1] != -1 && board[x][winBlockStats[1]] == CellValue.NONE) {
+                block = new Point(x, winBlockStats[1]);
             }
         }
 
@@ -101,48 +110,51 @@ public class HardTicTacToeAI implements TicTacToeAI, Serializable {
         LineStats diagResults = calculateWinBlockAndFork(diagScores);
         winBlockStats = diagResults.winBlockScores;
         for (int i = 0; i < 3; i++) {
-            if (winBlockStats.val1 == 0 && board[i][i] == CellValue.NONE) {
-                return new IntPair(i, i);
+            if (winBlockStats[0] == 0 && board[i][i] == CellValue.NONE) {
+                return new Point(i, i);
             }
-            if (winBlockStats.val1 == 1 && board[i][2 - i] == CellValue.NONE) {
-                return new IntPair(i, 2 - i);
-            }
-
-            if (winBlockStats.val2 == 0 && board[i][i] == CellValue.NONE) {
-                block = new IntPair(i, i);
+            if (winBlockStats[0] == 1 && board[i][2 - i] == CellValue.NONE) {
+                return new Point(i, 2 - i);
             }
 
-            if (winBlockStats.val2 == 1 && board[i][2 - i] == CellValue.NONE) {
-                block = new IntPair(i, 2 - i);
+            if (winBlockStats[1] == 0 && board[i][i] == CellValue.NONE) {
+                block = new Point(i, i);
+            }
+
+            if (winBlockStats[1] == 1 && board[i][2 - i] == CellValue.NONE) {
+                block = new Point(i, 2 - i);
             }
         }
         //endregion
 
         // region 2. Block Win
         if (block != null) {
-            return block; //todo random?
+            return block; // make this random for replayability?
         }
         //endregion
 
-        IntPair forkBlock = null; // Only need to keep track of one. If there's more than one, we've lost either way.
-        IntPair locationToMakeTwoInARow = null; // Also need only one. Just stave off a fork.
+        Point forkBlock = null; // Only need to keep track of one. If there's more than one, we've lost either way.
+        Point locationToMakeTwoInARow = null; // Also need only one; it's just to stave off a fork.
 
         // region 3. Fork
         for (int col = 0; col < 3; col++) {
             for (int row = 0; row < 3; row++) {
+                // Fork score for a space is the number of lines that intersect on a
+                // space that have only one space claimed, and it's by the AI
                 int myForkScore = colResults.myForkScores[col]
                         + rowResults.myForkScores[row]
                         + (col == row ? diagResults.myForkScores[0] : 0)
                         + (col == 2 - row ? diagResults.myForkScores[1] : 0);
+
                 if (board[col][row] == CellValue.NONE) {
-                    IntPair possibleLocation = new IntPair(col, row);
+                    Point possibleLocation = new Point(col, row);
 
                     if (myForkScore > 1) {
                         return possibleLocation;
                     }
                     if (myForkScore > 0) {
                         if (locationToMakeTwoInARow == null ||
-                                Math.abs(possibleLocation.val1 - possibleLocation.val2) != 1) {
+                                Math.abs(possibleLocation.x - possibleLocation.y) != 1) {
                             locationToMakeTwoInARow = possibleLocation;
                         }
                     }
@@ -153,7 +165,7 @@ public class HardTicTacToeAI implements TicTacToeAI, Serializable {
                         + (col == row ? diagResults.theirForkScores[0] : 0)
                         + (col == 2 - row ? diagResults.theirForkScores[1] : 0);
                 if (theirForkScore > 1 && board[col][row] == CellValue.NONE) {
-                    forkBlock = new IntPair(col, row);
+                    forkBlock = new Point(col, row);
                 }
             }
         }
@@ -162,7 +174,7 @@ public class HardTicTacToeAI implements TicTacToeAI, Serializable {
         // region 4. Block fork
         if (forkBlock != null) {
             if (locationToMakeTwoInARow != null) {
-                return locationToMakeTwoInARow; //todo random?
+                return locationToMakeTwoInARow; // make this random for replayability?
             }
 
             return forkBlock;
@@ -171,23 +183,23 @@ public class HardTicTacToeAI implements TicTacToeAI, Serializable {
 
         // region 5. Center
         if (board[1][1] == CellValue.NONE) {
-            return new IntPair(1, 1);
+            return new Point(1, 1);
         }
         //endregion
 
-        IntPair emptyCorner = null;
+        Point emptyCorner = null;
 
         //region 6. Opposite corner
-        int[] cornerLocs = new int[]{0, 2};
+        int[] cornerPoints = new int[]{0, 2};
 
-        for (int x : cornerLocs) {
-            for (int y : cornerLocs) {
+        for (int x : cornerPoints) {
+            for (int y : cornerPoints) {
                 if (board[x][y] == myTeam.other() && board[2 - x][2 - y] == CellValue.NONE) {
-                    return new IntPair(2 - x, 2 - y);
+                    return new Point(2 - x, 2 - y);
                 }
 
                 if (board[x][y] == CellValue.NONE) {
-                    emptyCorner = new IntPair(x, y);
+                    emptyCorner = new Point(x, y);
                 }
             }
         }
@@ -195,14 +207,14 @@ public class HardTicTacToeAI implements TicTacToeAI, Serializable {
 
         //region 7. Empty corner
         if (emptyCorner != null) {
-            return emptyCorner; //todo random?
+            return emptyCorner; // make this random for replayability?
         }
         //endregion
 
         //region 8. Empty side
-        for (IntPair loc : new IntPair[]{new IntPair(0, 1), new IntPair(1, 0), new IntPair(2, 1), new IntPair(1, 2)}) {
-            if (board[loc.val1][loc.val2] == CellValue.NONE) {
-                return loc; //todo random?
+        for (Point loc : new Point[]{new Point(0, 1), new Point(1, 0), new Point(2, 1), new Point(1, 2)}) {
+            if (board[loc.x][loc.y] == CellValue.NONE) {
+                return loc; // make this random for replayability?
             }
         }
         //endregion
@@ -210,23 +222,14 @@ public class HardTicTacToeAI implements TicTacToeAI, Serializable {
         throw new IllegalStateException("Can't return move while board is full.");
     }
 
-    private void addToLineScore(ScorePair[] line, int index, CellValue v) {
-        if (line[index] == null) {
-            line[index] = ScorePair.empty();
-        }
-
-        line[index].increment(v);
-    }
-
     private LineStats calculateWinBlockAndFork(ScorePair[] line) {
-        int myWin = -1, theirWin = -1;
-        int[] canFork = new int[line.length], theyCanFork = new int[line.length];
+        int[] lineScores = new int[]{-1, -1}, canFork = new int[line.length], theyCanFork = new int[line.length];
 
         for (int i = 0; i < line.length; i++) {
             if (line[i].getValue(myTeam) == 2) {
-                myWin = i;
+                lineScores[0] = i;
             } else if (line[i].getValue(myTeam.other()) == 2) {
-                theirWin = i;
+                lineScores[1] = i;
             }
 
 
@@ -239,9 +242,10 @@ public class HardTicTacToeAI implements TicTacToeAI, Serializable {
             }
         }
 
-        return new LineStats(new IntPair(myWin, theirWin), canFork, theyCanFork);
+        return new LineStats(lineScores, canFork, theyCanFork);
     }
 
+    // built-in
     @Serial
     private void writeObject(ObjectOutputStream s) throws IOException {
         s.defaultWriteObject();
@@ -253,12 +257,47 @@ public class HardTicTacToeAI implements TicTacToeAI, Serializable {
         init();
     }
 
-    private static class LineStats {
-        public final IntPair winBlockScores;
-        public final int[] myForkScores, theirForkScores;
+    // helpers
+    public static class ScorePair implements Serializable {
+        private int x, o;
 
-        public LineStats(IntPair ip, int[] mine, int[] theirs) {
-            winBlockScores = ip;
+        public ScorePair(int x, int o) {
+            this.x = x;
+            this.o = o;
+        }
+
+        public static ScorePair empty() {
+            return new ScorePair(0, 0);
+        }
+
+        public void increment(CellValue c) {
+            switch (c) {
+                case X -> x++;
+                case O -> o++;
+                default -> {}
+            }
+        }
+
+        public int getValue(CellValue c) {
+            return switch (c) {
+                case X -> x;
+                case O -> o;
+                default -> -1;
+            };
+        }
+
+        public int total() {
+            return x + o;
+        }
+    }
+
+    private static class LineStats {
+        // winBlockScores[0] is number of spaces in the line controlled by the AI,
+        // [1] is the number controlled by the other player
+        public final int[] winBlockScores, myForkScores, theirForkScores;
+
+        public LineStats(int[] scores, int[] mine, int[] theirs) {
+            winBlockScores = scores;
             myForkScores = mine;
             theirForkScores = theirs;
         }

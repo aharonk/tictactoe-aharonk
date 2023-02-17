@@ -1,9 +1,9 @@
 package edu.touro.cs.mcon364.model;
 
-import edu.touro.cs.mcon364.shared.IntPair;
+import java.awt.*;
 
 public interface TicTacToeAI {
-    IntPair calculateMove();
+    Point calculateMove();
 
-    void submitMoveToAI(IntPair loc);
+    void submitMoveToAI(Point loc);
 }

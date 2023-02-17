@@ -1,7 +1,8 @@
 package edu.touro.cs.mcon364.model;
 
 import edu.touro.cs.mcon364.model.TicTacToeModel.MoveResult.GameState;
-import edu.touro.cs.mcon364.shared.IntPair;
+
+import java.awt.*;
 
 import static edu.touro.cs.mcon364.model.TicTacToeModel.MoveResult.GameState.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -13,7 +14,7 @@ class AITest {
         for (int x = 0; x < 3; x++) {
             for (int y = 0; y < 3; y++) {
                 if (model.getSpace(x, y) == TicTacToeModel.CellValue.NONE) {
-                    return model.makeMove(new IntPair(x, y)).resultingState;
+                    return model.makeMove(new Point(x, y)).resultingState;
                 }
             }
         }

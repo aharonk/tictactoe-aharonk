@@ -1,7 +1,6 @@
 package edu.touro.cs.mcon364.model;
 
-import edu.touro.cs.mcon364.shared.IntPair;
-
+import java.awt.*;
 import java.io.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -13,7 +12,7 @@ class ModelSerializationTest {
         model.startGame(TicTacToeModel.GameType.HUMAN);
 
         for (int i = 0; i < 3; i++) {
-            model.makeMove(new IntPair(0, i));
+            model.makeMove(new Point(0, i));
         }
 
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("testSave.bin"))) {
@@ -33,10 +32,10 @@ class ModelSerializationTest {
         model.startGame(TicTacToeModel.GameType.HUMAN);
 
         for (int i = 0; i < 3; i++) {
-            model.makeMove(new IntPair(0, i));
+            model.makeMove(new Point(0, i));
         }
 
-        model.makeMove(new IntPair(1, 0));
+        model.makeMove(new Point(1, 0));
         TicTacToeModel.CellValue prevPlayer = model.previousPlayer();
 
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream("testSave.bin"))) {

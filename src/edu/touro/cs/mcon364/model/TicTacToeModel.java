@@ -1,19 +1,15 @@
 package edu.touro.cs.mcon364.model;
 
+import java.awt.*;
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
-
-import edu.touro.cs.mcon364.shared.IntPair;
 
 public class TicTacToeModel implements Serializable {
     private transient CellValue[][] board = new CellValue[3][3];
     private boolean XTurn;
 
-    // Used for O(1) win checks
-    private final ScorePair[] colScores = new ScorePair[3];
-    private final ScorePair[] rowScores = new ScorePair[3];
-    private final ScorePair[] diagScores = new ScorePair[2];
     private transient int moveCount;
 
     private transient TicTacToeAI ai;
@@ -35,26 +31,10 @@ public class TicTacToeModel implements Serializable {
     private void init() {
         // set up game
         for (int x = 0; x < 3; x++) {
-            for (int y = 0; y < 3; y++) {
-                board[x][y] = CellValue.NONE;
-            }
+            Arrays.fill(board[x], CellValue.NONE);
         }
 
         XTurn = true;
-
-        // set up scoring
-        for (int i = 0; i < 3; i++) {
-            colScores[i] = ScorePair.empty();
-        }
-
-        for (int i = 0; i < 3; i++) {
-            rowScores[i] = ScorePair.empty();
-        }
-
-        for (int i = 0; i < 2; i++) {
-            diagScores[i] = ScorePair.empty();
-        }
-
         moveCount = 0;
     }
 
@@ -62,6 +42,9 @@ public class TicTacToeModel implements Serializable {
         if (gt == GameType.COMPUTER) {
             aiTeam = (new Random().nextBoolean()) ? CellValue.X : CellValue.O;
             ai = new HardTicTacToeAI(this);
+        } else {
+            aiTeam = CellValue.NONE;
+            ai = null;
         }
     }
 
@@ -89,13 +72,10 @@ public class TicTacToeModel implements Serializable {
     }
 
     // move methods
-    public MoveResult makeMove(IntPair p) throws IllegalArgumentException, IndexOutOfBoundsException {
-        int x = p.val1, y = p.val2;
-        if (x < 0 || x > 2 || y < 0 || y > 2) {
-            throw new IndexOutOfBoundsException();
-        }
+    public MoveResult makeMove(Point p){
+        int x = p.x, y = p.y;
 
-        if (board[x][y] != CellValue.NONE) {
+        if (x < 0 || x > 2 || y < 0 || y > 2 || board[x][y] != CellValue.NONE) {
             throw new IllegalArgumentException();
         }
 
@@ -103,38 +83,38 @@ public class TicTacToeModel implements Serializable {
 
         board[x][y] = currentPlayer;
         if (ai != null) {
-            ai.submitMoveToAI(new IntPair(x, y));
+            ai.submitMoveToAI(new Point(x, y));
         }
         XTurn = !XTurn;
 
-        return scoreAndCheckWin(x, y, currentPlayer);
+        return scoreAndCheckWin(x, y);
     }
 
     // Each time a move is made, update the scores for that player in that row, column, and diagonal
     // (if applicable), and check whether there is a win along each of those lines.
     // Adapted from https://stackoverflow.com/a/1610176
-    private MoveResult scoreAndCheckWin(int x, int y, CellValue player) {
+    private MoveResult scoreAndCheckWin(int x, int y) {
 
         MoveResult res = new MoveResult(x, y);
 
         // Add a point for the player along the column the move was in.
-        if ((colScores[x].increment(player)) == 3) {
-            res.affectedLines.add(new IntPair[]{new IntPair(x, 0), new IntPair(x, 1), new IntPair(x, 2)});
+        if (board[x][0] == board[x][1] && board[x][0] == board[x][2]) {
+            res.affectedLines.add(new Point[]{new Point(x, 0), new Point(x, 1), new Point(x, 2)});
         }
 
         // And in the row.
-        if ((rowScores[y].increment(player)) == 3) {
-            res.affectedLines.add(new IntPair[]{new IntPair(0, y), new IntPair(1, y), new IntPair(2, y)});
+        if (board[0][y] == board[1][y] && board[0][y] == board[2][y]) {
+            res.affectedLines.add(new Point[]{new Point(0, y), new Point(1, y), new Point(2, y)});
         }
 
         // Diagonal if x == y
-        if (x == y && (diagScores[0].increment(player)) == 3) {
-            res.affectedLines.add(new IntPair[]{new IntPair(0, 0), new IntPair(1, 1), new IntPair(2, 2)});
+        if (x == y && board[0][0] == board[1][1] && board[0][0] == board[2][2]) {
+            res.affectedLines.add(new Point[]{new Point(0, 0), new Point(1, 1), new Point(2, 2)});
         }
 
         // Anti-diagonal if (2,0), (1,1) or (0,2)
-        if (x == 2 - y && (diagScores[1].increment(player)) == 3) {
-            res.affectedLines.add(new IntPair[]{new IntPair(0, 2), new IntPair(1, 1), new IntPair(2, 0)});
+        if (x == 2 - y && board[0][2] == board[1][1] && board[0][2] == board[2][0]) {
+            res.affectedLines.add(new Point[]{new Point(0, 2), new Point(1, 1), new Point(2, 0)});
         }
 
         if (!res.affectedLines.isEmpty()) {
@@ -232,7 +212,7 @@ public class TicTacToeModel implements Serializable {
 
         public GameState resultingState;
         public final int moveX, moveY;
-        public final ArrayList<IntPair[]> affectedLines;
+        public final ArrayList<Point[]> affectedLines;
 
         public MoveResult(int x, int y) {
             moveX = x;

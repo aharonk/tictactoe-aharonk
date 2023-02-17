@@ -3,14 +3,12 @@ package edu.touro.cs.mcon364.gui;
 import edu.touro.cs.mcon364.model.TicTacToeModel;
 import edu.touro.cs.mcon364.model.TicTacToeModel.MoveResult;
 import edu.touro.cs.mcon364.model.TicTacToeModel.MoveResult.GameState;
-import edu.touro.cs.mcon364.shared.IntPair;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
-import java.util.ArrayList;
 
 import static edu.touro.cs.mcon364.model.TicTacToeModel.GameType.COMPUTER;
 import static edu.touro.cs.mcon364.model.TicTacToeModel.GameType.HUMAN;
@@ -18,7 +16,6 @@ import static edu.touro.cs.mcon364.model.TicTacToeModel.GameType.HUMAN;
 public class TicTacToeGUI extends JFrame implements Serializable {
     private TicTacToeModel model;
     private transient JSquare[][] board;
-    private transient ArrayList<IntPair[]> winningLines = null;
     private transient JLabel currTurn;
     private final JCheckBox aiCheckBox;
     private transient final JButton save, restore;
@@ -72,7 +69,7 @@ public class TicTacToeGUI extends JFrame implements Serializable {
             fl.setHgap(15);
             JPanel row = new JPanel(fl);
             for (int y = 0; y < 3; y++) {
-                JSquare b = new JSquare(new IntPair(x, y));
+                JSquare b = new JSquare(new Point(x, y));
                 b.setPreferredSize(BUTTON_DIMENSIONS);
                 b.addActionListener(ml);
                 b.setEnabled(false);
@@ -119,31 +116,6 @@ public class TicTacToeGUI extends JFrame implements Serializable {
         return new int[]{dm.getWidth(), dm.getHeight()};
     }
 
-    private void newGame() {
-        model.newGame();
-        winningLines = null;
-
-        for (int x = 0; x < 3; x++) {
-            for (int y = 0; y < 3; y++) {
-                board[x][y].setText("");
-                board[x][y].setEnabled(true);
-            }
-        }
-
-        model.startGame(aiCheckBox.isSelected() ? COMPUTER : HUMAN);
-        aiCheckBox.setEnabled(false);
-        save.setEnabled(true);
-        restore.setEnabled(true);
-
-        currTurn.setText(TURN_BUFFER + 'X' + TURN_LABEL);
-
-        repaint();
-
-        if (model.getAiTeam() == TicTacToeModel.CellValue.X) {
-            processMoveResult(model.aiMove());
-        }
-    }
-
     private void loadSave() {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream("save.bin"))) {
             TicTacToeGUI tttg = (TicTacToeGUI) ois.readObject();
@@ -158,11 +130,9 @@ public class TicTacToeGUI extends JFrame implements Serializable {
             currTurn.setText(tttg.currTurn.getText());
             aiCheckBox.setSelected(tttg.aiCheckBox.isSelected());
 
-            repaint();
         } catch (IOException | ClassNotFoundException ex) {
             JOptionPane.showMessageDialog(
                     this, "Restore failed!", "Error", JOptionPane.ERROR_MESSAGE);
-            ex.printStackTrace();
         }
     }
 
@@ -181,16 +151,27 @@ public class TicTacToeGUI extends JFrame implements Serializable {
         }
 
         if (mv.resultingState != GameState.DRAW) {
-            winningLines = mv.affectedLines;
-            repaint();
+            // Show winning lines
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    board[i][j].setEnabled(false);
+                }
+            }
+
+            for (Point[] line : mv.affectedLines) {
+                for (Point p : line) {
+                    board[p.x][p.y].setEnabled(true);
+                }
+            }
         }
 
-        endGame(mv.resultingState);
-    }
-
-    private void endGame(GameState winner) {
-        String msg = (winner == GameState.DRAW) ? "The game is a draw." :
-                (((winner == GameState.X_WIN) ? 'X' : 'O') + " won the game.");
+        // If the game isn't continuing, it has ended
+        String msg = switch (mv.resultingState) {
+            case X_WIN -> "X won the game.";
+            case O_WIN -> "O won the game.";
+            case DRAW -> "The game is a draw.";
+            case CONTINUE -> throw new IllegalStateException(); // The game didn't end if it's continuing
+        };
         currTurn.setText(TURN_BUFFER + msg);
         aiCheckBox.setEnabled(true);
         save.setEnabled(false);
@@ -209,7 +190,9 @@ public class TicTacToeGUI extends JFrame implements Serializable {
             try {
                 moveResult = model.makeMove(s.p);
             } catch (IllegalArgumentException ex) {
-                return; // No move is performed.
+                // No move is performed. This catch will be tripped often,
+                // for example if the player clicks on an already claimed button.
+                return;
             }
 
             processMoveResult(moveResult);
@@ -220,7 +203,25 @@ public class TicTacToeGUI extends JFrame implements Serializable {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            newGame();
+            model.newGame();
+
+            for (int x = 0; x < 3; x++) {
+                for (int y = 0; y < 3; y++) {
+                    board[x][y].setText("");
+                    board[x][y].setEnabled(true);
+                }
+            }
+
+            model.startGame(aiCheckBox.isSelected() ? COMPUTER : HUMAN);
+            aiCheckBox.setEnabled(false);
+            save.setEnabled(true);
+            restore.setEnabled(true);
+
+            currTurn.setText(TURN_BUFFER + 'X' + TURN_LABEL);
+
+            if (model.getAiTeam() == TicTacToeModel.CellValue.X) {
+                processMoveResult(model.aiMove());
+            }
         }
     }
 
@@ -238,24 +239,6 @@ public class TicTacToeGUI extends JFrame implements Serializable {
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(tttg, "Save failed!", "Error", JOptionPane.ERROR_MESSAGE);
                 ex.printStackTrace();
-            }
-        }
-    }
-
-    // built-in methods
-    public void paint(Graphics g) {
-        super.paint(g);
-        if (winningLines != null) {
-            for (int i = 0; i < 3; i++) {
-                for (int j = 0; j < 3; j++) {
-                    board[i][j].setEnabled(false);
-                }
-            }
-
-            for (IntPair[] line : winningLines) {
-                for (IntPair ip : line) {
-                    board[ip.val1][ip.val2].setEnabled(true);
-                }
             }
         }
     }
