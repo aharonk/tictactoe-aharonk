@@ -37,9 +37,7 @@ public class TicTacToeGUI extends JFrame implements Serializable {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
         // Makes the JFrame appear in the center of the screen.
-        int[] screenDimensions = getScreenSize();
-        setLocation(screenDimensions[0] / 2 - WIDTH / 2,
-                screenDimensions[1] / 2 - HEIGHT / 2);
+        setLocationRelativeTo(null);
 
         // Set up save bar
         JPanel savePanel = new JPanel(new BorderLayout());
@@ -110,12 +108,6 @@ public class TicTacToeGUI extends JFrame implements Serializable {
     }
 
     // initialization
-    private int[] getScreenSize() {
-        // From https://stackoverflow.com/a/3680236/12976128
-        DisplayMode dm = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDisplayMode();
-        return new int[]{dm.getWidth(), dm.getHeight()};
-    }
-
     private void loadSave() {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream("save.bin"))) {
             TicTacToeGUI tttg = (TicTacToeGUI) ois.readObject();
